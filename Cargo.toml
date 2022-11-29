@@ -8,9 +8,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.66"
 clap = { version = "4.0.27", features = ["derive"] }
+log = "0.4.17"
 notify = "5.0.0"
 openssl = "0.10.43"
 reqwest = "0.11.13"
 serde = "1.0.148"
 serde_derive = "1.0.148"
+simple_logger = "4.0.0"
 toml = "0.5.9"
