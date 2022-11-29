@@ -7,8 +7,10 @@ use log::info;
 use notify::event::AccessKind;
 
 use crate::config::Config;
+use crate::keys::RsaKeyfile;
 
 mod config;
+mod keys;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -52,7 +54,8 @@ fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
     info!("Handling file: {}", file.display());
     for target in &config.targets {
         info!(".. with target {}", target.name);
-        let key_respone = reqwest::get(&target.key_url);
+        let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
+        dbg!(rsa_key);
     }
     Ok(())
 }
