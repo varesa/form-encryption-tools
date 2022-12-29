@@ -5,12 +5,13 @@ use notify::event::AccessKind;
 use notify::{EventKind, Watcher};
 use openssl::rsa::Padding;
 use serde_derive::Serialize;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::ErrorKind::NotFound;
 use std::path::PathBuf;
 use std::{fs, sync};
 
-use crate::config::{Config, ConfigFile};
+use crate::config::{Config, ConfigFile, Target};
 use crate::keys::RsaKeyfile;
 use crate::symmetric_cipher::SymmetricCipher;
 
@@ -66,54 +67,68 @@ struct Bundle {
     enc_key: Vec<u8>,
 }
 
+fn encrypt_for(plaintext: &str, target: &Target) -> Result<Bundle, anyhow::Error> {
+    let sym_cipher = SymmetricCipher::new();
+    let ciphertext = sym_cipher.encrypt(plaintext.as_bytes())?;
+
+    let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
+    let mut enc_sym_key = vec![0; rsa_key.size() as usize];
+    rsa_key.public_encrypt(
+        sym_cipher.get_key().as_slice(),
+        enc_sym_key.as_mut_slice(),
+        Padding::PKCS1,
+    )?;
+
+    Ok(Bundle {
+        ciphertext: ciphertext.clone(),
+        enc_key: enc_sym_key,
+    })
+}
+
+fn write_bundle(
+    bundle: &Bundle,
+    output_path: &PathBuf,
+    target: &str,
+    filename: &OsStr,
+) -> Result<(), anyhow::Error> {
+    let target_dir = PathBuf::from(output_path).join(&target.name);
+
+    match std::fs::metadata(&target_dir) {
+        Err(e) => {
+            assert_eq!(e.kind(), NotFound);
+            info!(
+                ".. parent {} does not exist, creating",
+                target_dir.display()
+            );
+            std::fs::create_dir(&target_dir)?;
+        }
+        Ok(f) => {
+            assert!(f.is_dir());
+        }
+    };
+
+    let file_path = PathBuf::from(&target_dir).join(filename);
+    //
+    info!(".. output to: {}", &file_path.display());
+
+    info!(".. writing");
+    let file = File::create(out_path)?;
+    bincode::serialize_into(file, &bundle)?;
+
+    Ok(())
+}
+
 fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
     info!("Handling file: {}", file.display());
+    let filename = file
+        .file_name()
+        .ok_or(anyhow::Error::msg("Unable to get input filename"))?;
     let plaintext_content = std::fs::read_to_string(&file)?;
-
-    let sym_cipher = SymmetricCipher::new();
-    let ciphertext = sym_cipher.encrypt(plaintext_content.as_bytes())?;
-    let sym_key = sym_cipher.get_key();
 
     for target in &config.targets {
         info!(".. with target {}", &target.name);
-        let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
-
-        let mut enc_sym_key = vec![0; rsa_key.size() as usize];
-        rsa_key.public_encrypt(
-            sym_key.as_slice(),
-            enc_sym_key.as_mut_slice(),
-            Padding::PKCS1,
-        )?;
-
-        let bundle = Bundle {
-            ciphertext: ciphertext.clone(),
-            enc_key: enc_sym_key,
-        };
-
-        let out_path = PathBuf::from(&config.output).join(&target.name).join(
-            file.file_name()
-                .ok_or(anyhow::Error::msg("Unable to get input filename"))?,
-        );
-        info!(".. output to: {}", &out_path.display());
-
-        let target_dir = out_path
-            .parent()
-            .ok_or(anyhow::Error::msg("Error getting output path parent"))?;
-
-        match std::fs::metadata(target_dir) {
-            Err(e) => {
-                assert_eq!(e.kind(), NotFound);
-                info!("Parent {} does not exist, creating", target_dir.display());
-                std::fs::create_dir(target_dir)?;
-            }
-            Ok(f) => {
-                assert!(f.is_dir());
-            }
-        };
-
-        info!(".. writing");
-        let file = File::create(out_path)?;
-        bincode::serialize_into(file, &bundle)?;
+        let bundle = encrypt_for(&plaintext_content, target)?;
+        write_bundle(&bundle, &config.output, &target.name, filename)
     }
     Ok(())
 }
