@@ -5,6 +5,8 @@ use clap::Parser;
 use notify::{EventKind, Watcher};
 use log::info;
 use notify::event::AccessKind;
+use openssl::rsa::Padding;
+use serde_derive::Serialize;
 
 use crate::config::Config;
 use crate::keys::RsaKeyfile;
@@ -51,19 +53,31 @@ fn main() -> Result<(), anyhow::Error> {
     Err(anyhow::format_err!("Exited the main loop"))
 }
 
+#[derive(Debug, Serialize)]
+struct Bundle {
+    ciphertext: Vec<u8>,
+    enc_key: Vec<u8>,
+}
+
 fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
     info!("Handling file: {}", file.display());
     let plaintext_content = std::fs::read_to_string(file)?;
 
     let sym_cipher = SymmetricCipher::new();
-    let _ciphertext = sym_cipher.encrypt(plaintext_content.as_bytes())?;
-    let _sym_key = sym_cipher.get_key();
+    let ciphertext = sym_cipher.encrypt(plaintext_content.as_bytes())?;
+    let sym_key = sym_cipher.get_key();
 
 
     for target in &config.targets {
         info!(".. with target {}", target.name);
         let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
-        dbg!(rsa_key);
+        let mut enc_sym_key = vec![0; rsa_key.size() as usize];
+        rsa_key.public_encrypt(sym_key.as_slice(), enc_sym_key.as_mut_slice(), Padding::PKCS1)?;
+
+        let bundle = Bundle {
+            ciphertext: ciphertext.clone(),
+            enc_key: enc_sym_key,
+        };
     }
     Ok(())
 }
