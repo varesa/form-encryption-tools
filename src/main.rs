@@ -8,9 +8,11 @@ use notify::event::AccessKind;
 
 use crate::config::Config;
 use crate::keys::RsaKeyfile;
+use crate::symmetric_cipher::SymmetricCipher;
 
 mod config;
 mod keys;
+mod symmetric_cipher;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -49,9 +51,15 @@ fn main() -> Result<(), anyhow::Error> {
     Err(anyhow::format_err!("Exited the main loop"))
 }
 
-
 fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
     info!("Handling file: {}", file.display());
+    let plaintext_content = std::fs::read_to_string(file)?;
+
+    let sym_cipher = SymmetricCipher::new();
+    let _ciphertext = sym_cipher.encrypt(plaintext_content.as_bytes())?;
+    let _sym_key = sym_cipher.get_key();
+
+
     for target in &config.targets {
         info!(".. with target {}", target.name);
         let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
