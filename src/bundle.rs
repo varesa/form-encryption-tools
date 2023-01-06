@@ -1,9 +1,9 @@
+use log::info;
+use serde_derive::Serialize;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::ErrorKind::NotFound;
 use std::path::PathBuf;
-use log::info;
-use serde_derive::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct Bundle {
@@ -24,9 +24,9 @@ impl Bundle {
             Err(e) => {
                 assert_eq!(e.kind(), NotFound);
                 info!(
-                ".. parent {} does not exist, creating",
-                target_dir.display()
-            );
+                    ".. parent {} does not exist, creating",
+                    target_dir.display()
+                );
                 std::fs::create_dir(&target_dir)?;
             }
             Ok(f) => {

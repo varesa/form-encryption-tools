@@ -1,5 +1,5 @@
 use openssl::rand::rand_bytes;
-use openssl::symm::{Cipher, encrypt};
+use openssl::symm::{encrypt, Cipher};
 
 const KEY_LENGTH: usize = 32;
 const IV_LENGTH: usize = 16;
@@ -20,10 +20,7 @@ impl SymmetricCipher {
         rand_bytes(key.as_mut_slice()).unwrap();
         assert_ne!(key, [0u8; KEY_LENGTH]);
 
-        SymmetricCipher {
-            cipher,
-            key,
-        }
+        SymmetricCipher { cipher, key }
     }
 
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
@@ -34,7 +31,7 @@ impl SymmetricCipher {
             self.cipher,
             self.key.as_slice(),
             Some(iv.as_slice()),
-            plaintext
+            plaintext,
         )?;
 
         Ok(ciphertext)

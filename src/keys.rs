@@ -1,8 +1,8 @@
-use serde_derive::Deserialize;
-use std::io::Read;
 use log::info;
 use openssl::pkey;
 use openssl::rsa::Rsa;
+use serde_derive::Deserialize;
+use std::io::Read;
 
 #[derive(Debug, Deserialize)]
 pub struct RsaKeyfile {
@@ -26,7 +26,10 @@ impl RsaKeyfile {
 
     pub fn into_rsa_key(self) -> Result<Rsa<pkey::Public>, anyhow::Error> {
         if &self.kty != "RSA" {
-            return Err(anyhow::format_err!("Invalid keytype: {}, expected RSA", &self.kty));
+            return Err(anyhow::format_err!(
+                "Invalid keytype: {}, expected RSA",
+                &self.kty
+            ));
         }
 
         let n_slice = data_encoding::BASE64URL_NOPAD.decode(self.n.as_bytes())?;
