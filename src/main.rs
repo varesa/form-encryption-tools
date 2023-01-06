@@ -2,21 +2,23 @@ use anyhow::Context;
 use clap::Parser;
 use log::info;
 use notify::event::AccessKind;
-use notify::{Event, EventKind, Watcher};
+use notify::{Event, EventKind, RecommendedWatcher, Watcher};
 use openssl::rsa::Padding;
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};
 
+use crate::bundle::Bundle;
 use crate::config::{Config, ConfigFile, Target};
 use crate::keys::RsaKeyfile;
 use crate::symmetric_cipher::SymmetricCipher;
-use crate::bundle::Bundle;
 
+mod bundle;
 mod config;
 mod keys;
 mod symmetric_cipher;
-mod bundle;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -33,12 +35,14 @@ struct Cli {
     output: PathBuf,
 }
 
-fn watch_files(path: &Path) -> Result<Receiver<notify::Result<Event>>, anyhow::Error> {
+fn watch_files(
+    path: &Path,
+) -> Result<(RecommendedWatcher, Receiver<notify::Result<Event>>), anyhow::Error> {
     let (tx, rx) = channel();
 
     let mut watcher = notify::recommended_watcher(tx)?;
     watcher.watch(path, notify::RecursiveMode::NonRecursive)?;
-    Ok(rx)
+    Ok((watcher, rx))
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -53,7 +57,8 @@ fn main() -> Result<(), anyhow::Error> {
         output: cli.output,
     };
 
-    for event in watch_files(&cli.input)?.iter() {
+    let (_watcher, events) = watch_files(&cli.input)?;
+    for event in events {
         let event = event?;
         if let EventKind::Access(AccessKind::Close(_)) = &event.kind {
             for path in event.paths {
@@ -69,19 +74,30 @@ fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
     let filename = file
         .file_name()
         .ok_or_else(|| anyhow::Error::msg("Unable to get input filename"))?;
-    let plaintext_content = std::fs::read_to_string(&file)?;
+
+    let mut plaintext_content = Vec::new();
+    BufReader::new(
+        File::open(&file).context(format!("Error opening input file: {:?}", &filename))?,
+    )
+    .read_to_end(&mut plaintext_content)
+    .context(format!("Error reading input file: {:?}", &filename))?;
 
     for target in &config.targets {
         info!(".. with target {}", &target.name);
-        let bundle = encrypt_for(&plaintext_content, target)?;
-        bundle.write_to_path(&config.output, &target.name, filename)?;
+        let bundle =
+            encrypt_for(&plaintext_content, target).context(format!("Error encrypting"))?;
+        bundle
+            .write_to_path(&config.output, &target.name, filename)
+            .context(format!("Error writing output file"))?;
     }
+
+    info!("Done with {}", file.display());
     Ok(())
 }
 
-fn encrypt_for(plaintext: &str, target: &Target) -> Result<Bundle, anyhow::Error> {
+fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Error> {
     let sym_cipher = SymmetricCipher::new();
-    let ciphertext = sym_cipher.encrypt(plaintext.as_bytes())?;
+    let ciphertext = sym_cipher.encrypt(plaintext)?;
 
     let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
     let mut sym_enc_key = vec![0; rsa_key.size() as usize];
