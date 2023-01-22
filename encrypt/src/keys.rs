@@ -1,3 +1,4 @@
+use anyhow::Context;
 use log::info;
 use openssl::pkey;
 use openssl::rsa::Rsa;
@@ -32,12 +33,17 @@ impl RsaKeyfile {
             ));
         }
 
-        let n_slice = data_encoding::BASE64URL_NOPAD.decode(self.n.as_bytes())?;
-        let e_slice = data_encoding::BASE64URL_NOPAD.decode(self.e.as_bytes())?;
+        let n_slice = data_encoding::BASE64URL_NOPAD
+            .decode(self.n.as_bytes())
+            .context("Decoding n")?;
+        let e_slice = data_encoding::BASE64URL_NOPAD
+            .decode(self.e.as_bytes())
+            .context("Decoding e")?;
         let rsa_key = openssl::rsa::Rsa::from_public_components(
             openssl::bn::BigNum::from_slice(&n_slice)?,
             openssl::bn::BigNum::from_slice(&e_slice)?,
-        )?;
+        )
+        .context("Building RSA key from components")?;
         Ok(rsa_key)
     }
 }

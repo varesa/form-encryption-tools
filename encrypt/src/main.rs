@@ -99,16 +99,28 @@ fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Erro
     let sym_cipher = SymmetricCipher::new();
     let ciphertext = sym_cipher.encrypt(plaintext)?;
 
-    let rsa_key = RsaKeyfile::from_url(&target.key_url)?.into_rsa_key()?;
-    let mut sym_enc_key = vec![0; rsa_key.size() as usize];
+    dbg!(sym_cipher.get_key().len());
+
+    let rsa_key = RsaKeyfile::from_url(
+        "https://share.esav.fi/esa/5b977852-e823-4e90-904d-094f9f1c63b0/private.json",
+    )
+    .context("Getting public key from URL")?
+    .into_rsa_key()
+    .context("Converting keyfile to a key")?;
+    dbg!(&rsa_key.size());
+    let mut wrapped_key = vec![0; rsa_key.size() as usize];
     rsa_key.public_encrypt(
         sym_cipher.get_key().as_slice(),
-        sym_enc_key.as_mut_slice(),
+        wrapped_key.as_mut_slice(),
         Padding::PKCS1,
     )?;
 
+    dbg!(&wrapped_key.len());
+    dbg!(hex::encode(&sym_cipher.get_key().as_slice()));
+    dbg!(hex::encode(&wrapped_key));
+
     Ok(Bundle {
         ciphertext,
-        enc_key: sym_enc_key,
+        enc_key: wrapped_key,
     })
 }
