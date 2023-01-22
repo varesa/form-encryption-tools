@@ -5,11 +5,10 @@ use notify::event::AccessKind;
 use notify::{EventKind, Watcher, Event, RecommendedWatcher};
 use std::fs::{File, remove_file};
 use reqwest::blocking::multipart::{Part, Form};
-use crate::bundle::Bundle;
+use common::bundle::Bundle;
 use anyhow::Context;
 
 mod test_server;
-mod bundle;
 
 #[derive(Debug, Parser)]
 struct Cli {

@@ -1,20 +1,17 @@
 use std::fs::File;
 use std::io::Write;
-use anyhow::Context;
 use openssl::rsa::Padding;
 use openssl::symm::{Cipher, decrypt};
-use crate::bundle::Bundle;
+use common::bundle::Bundle;
 use crate::keys::RsaPrivateKeyfile;
 
 mod keys;
-mod bundle;
 
 fn main() {
     println!("Started");
 
     let file = File::open("/home/esav.fi/esa/workspace/queue-decrypt/encrypted-596f0006-8daf-11ed-86ec-fa163e3c1968.zip").unwrap();
     let bundle: Bundle = bincode::deserialize_from(&file).unwrap();
-    dbg!(hex::encode(bundle.enc_key.as_slice()));
 
     let private_key = RsaPrivateKeyfile::from_url("https://share.esav.fi/esa/5b977852-e823-4e90-904d-094f9f1c63b0/private.json").unwrap().into_rsa_key().unwrap();
 
@@ -22,7 +19,6 @@ fn main() {
     private_key.private_decrypt(bundle.enc_key.as_slice(), buf.as_mut_slice(), Padding::PKCS1).unwrap();
 
     let sym_enc_key = &buf[0..32];
-    dbg!(hex::encode(&sym_enc_key));
 
     let cipher = Cipher::aes_256_cbc();
     let iv = [0u8; 16];

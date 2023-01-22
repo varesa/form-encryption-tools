@@ -10,12 +10,11 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};
 
-use crate::bundle::Bundle;
+use common::bundle::Bundle;
 use crate::config::{Config, ConfigFile, Target};
 use crate::keys::RsaKeyfile;
 use crate::symmetric_cipher::SymmetricCipher;
 
-mod bundle;
 mod config;
 mod keys;
 mod symmetric_cipher;

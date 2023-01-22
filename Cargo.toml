@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "common",
     "encrypt",
     "decrypt",
     "send"

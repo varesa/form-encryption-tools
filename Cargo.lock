@@ -183,6 +183,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "clap",
+ "data-encoding",
+ "hex",
+ "json",
+ "log",
+ "notify",
+ "openssl",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "simple_logger",
+ "toml",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1059,6 +1080,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "clap",
+ "common",
  "data-encoding",
  "hex",
  "json",
@@ -1080,7 +1102,9 @@ dependencies = [
  "anyhow",
  "bincode",
  "clap",
+ "common",
  "data-encoding",
+ "hex",
  "json",
  "log",
  "notify",
@@ -1100,6 +1124,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "clap",
+ "common",
  "futures",
  "hex",
  "log",

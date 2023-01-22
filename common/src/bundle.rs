@@ -1,14 +1,14 @@
 use log::info;
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::ErrorKind::NotFound;
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Bundle {
-    pub(crate) ciphertext: Vec<u8>,
-    pub(crate) enc_key: Vec<u8>,
+    pub ciphertext: Vec<u8>,
+    pub enc_key: Vec<u8>,
 }
 
 impl Bundle {
