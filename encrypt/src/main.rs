@@ -2,22 +2,22 @@ use anyhow::Context;
 use clap::Parser;
 use log::info;
 use notify::event::AccessKind;
-use notify::{Event, EventKind, RecommendedWatcher, Watcher};
+use notify::EventKind;
 use openssl::rsa::Padding;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Receiver};
+use std::path::PathBuf;
 
 use common::bundle::Bundle;
+use common::symmetric_cipher::SymmetricCipher;
+use common::watch::watch_files;
+
 use crate::config::{Config, ConfigFile, Target};
 use crate::keys::RsaKeyfile;
-use crate::symmetric_cipher::SymmetricCipher;
 
 mod config;
 mod keys;
-mod symmetric_cipher;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -32,16 +32,6 @@ struct Cli {
 
     #[arg(long)]
     output: PathBuf,
-}
-
-fn watch_files(
-    path: &Path,
-) -> Result<(RecommendedWatcher, Receiver<notify::Result<Event>>), anyhow::Error> {
-    let (tx, rx) = channel();
-
-    let mut watcher = notify::recommended_watcher(tx)?;
-    watcher.watch(path, notify::RecursiveMode::NonRecursive)?;
-    Ok((watcher, rx))
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -83,8 +73,7 @@ fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
 
     for target in &config.targets {
         info!(".. with target {}", &target.name);
-        let bundle =
-            encrypt_for(&plaintext_content, target).context("Error encrypting")?;
+        let bundle = encrypt_for(&plaintext_content, target).context("Error encrypting")?;
         bundle
             .write_to_path(&config.output, &target.name, filename)
             .context("Error writing output file")?;
@@ -95,15 +84,13 @@ fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
 }
 
 fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Error> {
-    let sym_cipher = SymmetricCipher::new();
+    let sym_cipher = SymmetricCipher::new(None);
     let ciphertext = sym_cipher.encrypt(plaintext)?;
 
-    dbg!(sym_cipher.get_key().len());
-
     let rsa_key = RsaKeyfile::from_url(&target.key_url)
-    .context("Getting public key from URL")?
-    .into_rsa_key()
-    .context("Converting keyfile to a key")?;
+        .context("Getting public key from URL")?
+        .into_rsa_key()
+        .context("Converting keyfile to a key")?;
     dbg!(&rsa_key.size());
     let mut wrapped_key = vec![0; rsa_key.size() as usize];
     rsa_key.public_encrypt(
@@ -111,10 +98,6 @@ fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Erro
         wrapped_key.as_mut_slice(),
         Padding::PKCS1,
     )?;
-
-    dbg!(&wrapped_key.len());
-    dbg!(hex::encode(sym_cipher.get_key().as_slice()));
-    dbg!(hex::encode(&wrapped_key));
 
     Ok(Bundle {
         ciphertext,
