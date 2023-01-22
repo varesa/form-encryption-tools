@@ -84,10 +84,10 @@ fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
     for target in &config.targets {
         info!(".. with target {}", &target.name);
         let bundle =
-            encrypt_for(&plaintext_content, target).context(format!("Error encrypting"))?;
+            encrypt_for(&plaintext_content, target).context("Error encrypting")?;
         bundle
             .write_to_path(&config.output, &target.name, filename)
-            .context(format!("Error writing output file"))?;
+            .context("Error writing output file")?;
     }
 
     info!("Done with {}", file.display());
@@ -100,9 +100,7 @@ fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Erro
 
     dbg!(sym_cipher.get_key().len());
 
-    let rsa_key = RsaKeyfile::from_url(
-        "https://share.esav.fi/esa/5b977852-e823-4e90-904d-094f9f1c63b0/private.json",
-    )
+    let rsa_key = RsaKeyfile::from_url(&target.key_url)
     .context("Getting public key from URL")?
     .into_rsa_key()
     .context("Converting keyfile to a key")?;
@@ -115,7 +113,7 @@ fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Erro
     )?;
 
     dbg!(&wrapped_key.len());
-    dbg!(hex::encode(&sym_cipher.get_key().as_slice()));
+    dbg!(hex::encode(sym_cipher.get_key().as_slice()));
     dbg!(hex::encode(&wrapped_key));
 
     Ok(Bundle {

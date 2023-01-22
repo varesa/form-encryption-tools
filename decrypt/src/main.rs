@@ -1,5 +1,4 @@
 use std::fs::File;
-use std::io::Write;
 use openssl::rsa::Padding;
 use openssl::symm::{Cipher, decrypt};
 use common::bundle::Bundle;
@@ -22,20 +21,5 @@ fn main() {
 
     let cipher = Cipher::aes_256_cbc();
     let iv = [0u8; 16];
-    let plaintext = decrypt(cipher, &sym_enc_key, Some(iv.as_slice()), &bundle.ciphertext).unwrap();
-
-    File::create("/home/esav.fi/esa/workspace/queue-decrypt/wrapped_key").unwrap().write(&bundle.enc_key).unwrap();
-    File::create("/home/esav.fi/esa/workspace/queue-decrypt/unwrapped_key").unwrap().write(&sym_enc_key).unwrap();
-    File::create("/home/esav.fi/esa/workspace/queue-decrypt/ciphertext").unwrap().write(&bundle.ciphertext).unwrap();
-    File::create("/home/esav.fi/esa/workspace/queue-decrypt/plaintext").unwrap().write(&plaintext).unwrap();
-
-    /*
-    let private_pem = private_key.private_key_to_pem().unwrap();
-    File::create("/home/esav.fi/esa/workspace/queue-decrypt/private.pem").unwrap().write(&private_pem).unwrap();
-    let public_pem = private_key.public_key_to_pem().unwrap();
-    File::create("/home/esav.fi/esa/workspace/queue-decrypt/public.pem").unwrap().write(&public_pem).unwrap();
-    */
-
-
-    //File::create("/home/esav.fi/esa/workspace/queue-decrypt/wrapped_key").unwrap().write(&bundle.enc_key).unwrap();
+    let _plaintext = decrypt(cipher, sym_enc_key, Some(iv.as_slice()), &bundle.ciphertext).unwrap();
 }
