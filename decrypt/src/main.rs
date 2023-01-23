@@ -1,5 +1,5 @@
 use common::bundle::Bundle;
-use common::rsa_keys::RsaPrivateKey;
+use common::rsa_keys::{KeyFromUrl, RsaPrivateKey};
 use common::symmetric_cipher::SymmetricCipher;
 use openssl::rsa::Padding;
 use std::fs::File;

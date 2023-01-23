@@ -77,18 +77,6 @@ pub struct RsaPrivateKey {
 }
 
 impl RsaPrivateKey {
-    pub fn from_raw_string(data: &str) -> Result<Self, anyhow::Error> {
-        serde_json::from_str(data).map_err(|err| err.into())
-    }
-
-    pub fn from_url(url: &str) -> Result<Self, anyhow::Error> {
-        info!("Fetching {}", url);
-        let mut keyfile_string = String::new();
-        reqwest::blocking::get(url)?.read_to_string(&mut keyfile_string)?;
-
-        Self::from_raw_string(&keyfile_string)
-    }
-
     pub fn into_rsa_key(self) -> Result<Rsa<pkey::Private>, anyhow::Error> {
         if &self.kty != "RSA" {
             return Err(anyhow::format_err!(
