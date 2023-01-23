@@ -2,7 +2,6 @@ use crate::keys::RsaPrivateKeyfile;
 use common::bundle::Bundle;
 use common::symmetric_cipher::SymmetricCipher;
 use openssl::rsa::Padding;
-use openssl::symm::{decrypt, Cipher};
 use std::fs::File;
 
 mod keys;
