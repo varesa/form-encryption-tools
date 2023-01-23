@@ -10,14 +10,13 @@ use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
 use common::bundle::Bundle;
+use common::rsa_keys::{KeyFromUrl, RsaPubkey};
 use common::symmetric_cipher::SymmetricCipher;
 use common::watch::watch_files;
 
 use crate::config::{Config, ConfigFile, Target};
-use crate::keys::RsaKeyfile;
 
 mod config;
-mod keys;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -87,7 +86,7 @@ fn encrypt_for(plaintext: &[u8], target: &Target) -> Result<Bundle, anyhow::Erro
     let sym_cipher = SymmetricCipher::new(None);
     let ciphertext = sym_cipher.encrypt(plaintext)?;
 
-    let rsa_key = RsaKeyfile::from_url(&target.key_url)
+    let rsa_key = RsaPubkey::from_url(&target.key_url)
         .context("Getting public key from URL")?
         .into_rsa_key()
         .context("Converting keyfile to a key")?;

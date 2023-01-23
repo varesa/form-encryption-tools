@@ -1,10 +1,8 @@
-use crate::keys::RsaPrivateKeyfile;
 use common::bundle::Bundle;
+use common::rsa_keys::RsaPrivateKey;
 use common::symmetric_cipher::SymmetricCipher;
 use openssl::rsa::Padding;
 use std::fs::File;
-
-mod keys;
 
 fn main() {
     println!("Started");
@@ -12,7 +10,7 @@ fn main() {
     let file = File::open("/home/esav.fi/esa/workspace/queue-decrypt/encrypted-596f0006-8daf-11ed-86ec-fa163e3c1968.zip").unwrap();
     let bundle: Bundle = bincode::deserialize_from(&file).unwrap();
 
-    let private_key = RsaPrivateKeyfile::from_url(
+    let private_key = RsaPrivateKey::from_url(
         "https://share.esav.fi/esa/5b977852-e823-4e90-904d-094f9f1c63b0/private.json",
     )
     .unwrap()
