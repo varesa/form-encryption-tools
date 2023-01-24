@@ -1,11 +1,13 @@
 use anyhow::Error;
 use clap::Parser;
-use common::bundle::Bundle;
-use common::rsa_keys::{KeyFromUrl, RsaPrivateKey};
-use common::sources;
-use common::sources::Data;
-use common::symmetric_cipher::SymmetricCipher;
+use common::{bundle::Bundle, sources, sources::Data, symmetric_cipher::SymmetricCipher};
+use lettre::message::{Body, MultiPart, SinglePart};
+use lettre::{
+    message::{Attachment, Message},
+    SmtpTransport, Transport,
+};
 use log::info;
+use openssl::pkey::Private;
 use openssl::rsa::{Padding, Rsa};
 use std::fs;
 use std::path::PathBuf;
@@ -20,6 +22,12 @@ struct Cli {
 
     #[arg(long)]
     private_key: PathBuf,
+
+    #[arg(long)]
+    smtp_server: String,
+
+    #[arg(long)]
+    smtp_address: String,
 }
 
 fn main() -> Result<(), Error> {
@@ -28,26 +36,28 @@ fn main() -> Result<(), Error> {
 
     let cli = Cli::parse();
 
-    let private_key_pem = fs::read(cli.private_key)?;
+    info!("Loading private key");
+    let private_key_pem = fs::read(&cli.private_key)?;
     let private_key = Rsa::private_key_from_pem(&private_key_pem)?;
+
+    info!("Opening SMTP connection");
+    let mailer = SmtpTransport::builder_dangerous(&cli.smtp_server).build();
 
     let mut source = sources::from_string(&cli.source)?;
     loop {
         let data = source.next()?;
-        dbg!(&data);
+        handle_file(&data, &private_key, &mailer, &cli.smtp_address)?;
         source.confirm(data.id)?;
     }
 }
 
-fn handle_file(data: &Data) {
+fn handle_file(
+    data: &Data,
+    private_key: &Rsa<Private>,
+    mailer: &SmtpTransport,
+    smtp_address: &str,
+) -> Result<(), Error> {
     let bundle: Bundle = bincode::deserialize(&data.contents).unwrap();
-
-    let private_key = RsaPrivateKey::from_url(
-        "https://share.esav.fi/esa/5b977852-e823-4e90-904d-094f9f1c63b0/private.json",
-    )
-    .unwrap()
-    .into_rsa_key()
-    .unwrap();
 
     let mut buf = vec![0; private_key.size() as usize];
     private_key
@@ -61,5 +71,32 @@ fn handle_file(data: &Data) {
     let sym_enc_key = &buf[0..32];
 
     let cipher = SymmetricCipher::new(Some(sym_enc_key));
-    let _plaintext = cipher.decrypt(&bundle.ciphertext);
+    let plaintext = cipher.decrypt(&bundle.ciphertext)?;
+    send_email(&plaintext, mailer, smtp_address)?;
+    Ok(())
+}
+
+fn send_email(zip: &[u8], mailer: &SmtpTransport, smtp_address: &str) -> Result<(), Error> {
+    info!("Constructing email message");
+    let message = Message::builder()
+        .from(
+            "Hakulomake <noreply@localhost.localdomain>"
+                .parse()
+                .unwrap(),
+        )
+        .to(smtp_address.parse()?)
+        .subject("Hakulomake")
+        .multipart(
+            MultiPart::mixed()
+                .singlepart(SinglePart::plain("Uusi hakulomake...".to_string()))
+                .singlepart(
+                    Attachment::new("lomake.zip".to_string())
+                        .body(Body::new(zip.to_vec()), "application/zip".parse()?),
+                ),
+        )
+        .unwrap();
+
+    info!("Sending email");
+    mailer.send(&message)?;
+    Ok(())
 }
