@@ -92,7 +92,7 @@ impl Source for SshSource {
     fn next(&mut self) -> Result<Data, Error> {
         let path = loop {
             let mut files = self.sftp.readdir(&self.directory)?;
-            if files.len() > 0 {
+            if !files.is_empty() {
                 break files.pop().unwrap().0;
             } else {
                 thread::sleep(Duration::from_secs(5));
