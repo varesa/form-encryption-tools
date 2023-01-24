@@ -1,18 +1,15 @@
 use anyhow::Context;
 use clap::Parser;
 use log::info;
-use notify::event::AccessKind;
-use notify::EventKind;
 use openssl::rsa::Padding;
 use std::fs;
-use std::fs::File;
-use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
 use common::bundle::Bundle;
 use common::rsa_keys::{KeyFromUrl, RsaPubkey};
+use common::sources;
+use common::sources::Data;
 use common::symmetric_cipher::SymmetricCipher;
-use common::watch::watch_files;
 
 use crate::config::{Config, ConfigFile, Target};
 
@@ -45,40 +42,25 @@ fn main() -> Result<(), anyhow::Error> {
         output: cli.output,
     };
 
-    let (_watcher, events) = watch_files(&cli.input)?;
-    for event in events {
-        let event = event?;
-        if let EventKind::Access(AccessKind::Close(_)) = &event.kind {
-            for path in event.paths {
-                handle_file(path, &config)?;
-            }
-        }
+    let source = sources::from_string(cli.input.to_str().unwrap());
+    loop {
+        let data = source.next()?;
+        handle_data(&data, &config)?;
+        source.confirm(data.id)?;
     }
-    Err(anyhow::format_err!("Exited the main loop"))
 }
 
-fn handle_file(file: PathBuf, config: &Config) -> Result<(), anyhow::Error> {
-    info!("Handling file: {}", file.display());
-    let filename = file
-        .file_name()
-        .ok_or_else(|| anyhow::Error::msg("Unable to get input filename"))?;
-
-    let mut plaintext_content = Vec::new();
-    BufReader::new(
-        File::open(&file).context(format!("Error opening input file: {:?}", &filename))?,
-    )
-    .read_to_end(&mut plaintext_content)
-    .context(format!("Error reading input file: {:?}", &filename))?;
-
+fn handle_data(data: &Data, config: &Config) -> Result<(), anyhow::Error> {
+    info!("Handling {:?}", &data.id);
     for target in &config.targets {
         info!(".. with target {}", &target.name);
-        let bundle = encrypt_for(&plaintext_content, target).context("Error encrypting")?;
+        let bundle = encrypt_for(&data.contents, target).context("Error encrypting")?;
         bundle
-            .write_to_path(&config.output, &target.name, filename)
+            .write_to_path(&config.output, &target.name, &data.id)
             .context("Error writing output file")?;
     }
 
-    info!("Done with {}", file.display());
+    info!("Done with {:?}", &data.id);
     Ok(())
 }
 
