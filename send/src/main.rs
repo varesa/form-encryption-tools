@@ -1,12 +1,13 @@
+use anyhow::Context;
+use clap::Parser;
+use common::bundle::Bundle;
+use log::info;
+use notify::event::AccessKind;
+use notify::{Event, EventKind, RecommendedWatcher, Watcher};
+use reqwest::blocking::multipart::{Form, Part};
+use std::fs::{remove_file, File};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};
-use clap::Parser;
-use notify::event::AccessKind;
-use notify::{EventKind, Watcher, Event, RecommendedWatcher};
-use std::fs::{File, remove_file};
-use reqwest::blocking::multipart::{Part, Form};
-use common::bundle::Bundle;
-use anyhow::Context;
 
 mod test_server;
 
@@ -27,7 +28,8 @@ fn file_to_form(path: &PathBuf) -> Result<Form, anyhow::Error> {
             "files[]",
             Part::bytes(bundle.ciphertext)
                 .file_name("form.zip")
-                .mime_str("application/zip").context("Failed to set MIME type")?
+                .mime_str("application/zip")
+                .context("Failed to set MIME type")?,
         )
         .text("key", hex::encode(bundle.enc_key));
     Ok(form)
@@ -43,8 +45,10 @@ fn watch_files(
     Ok((watcher, rx))
 }
 
-fn main()  -> Result<(), anyhow::Error> {
+fn main() -> Result<(), anyhow::Error> {
     simple_logger::init_with_level(log::Level::Info).unwrap();
+    info!("Starting");
+
     let cli = Cli::parse();
 
     let (_watcher, events) = watch_files(&cli.input)?;
@@ -52,8 +56,13 @@ fn main()  -> Result<(), anyhow::Error> {
         let event = event?;
         if let EventKind::Access(AccessKind::Close(_)) = &event.kind {
             for path in event.paths {
+                info!("Sending {}", path.display());
                 let form = file_to_form(&path).context("Failed to construct form")?;
-                let response = reqwest::blocking::Client::new().post(&cli.target).multipart(form).send().context("HTTP request failed")?;
+                let response = reqwest::blocking::Client::new()
+                    .post(&cli.target)
+                    .multipart(form)
+                    .send()
+                    .context("HTTP request failed")?;
 
                 if !response.status().is_success() {
                     log::error!("HTTP request failed: {:?}", response);
