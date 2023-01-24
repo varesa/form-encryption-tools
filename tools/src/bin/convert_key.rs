@@ -9,7 +9,7 @@ fn main() {
     dbg!(filename);
 
     let keydata = fs::read(filename).expect("Unable to read key file");
-    let key = Rsa::private_key_from_pem(&keydata).expect("Unable to understand key");
+    let key = Rsa::public_key_from_pem(&keydata).expect("Unable to understand key");
 
     let n = encode(key.n());
     let e = encode(key.e());
