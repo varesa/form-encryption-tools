@@ -1,16 +1,18 @@
 use anyhow::Error;
 use clap::Parser;
 use common::{bundle::Bundle, sources, sources::Data, symmetric_cipher::SymmetricCipher};
-use lettre::message::{Body, MultiPart, SinglePart};
 use lettre::{
-    message::{Attachment, Message},
+    message::{Attachment, Body, Message, MultiPart, SinglePart},
     SmtpTransport, Transport,
 };
 use log::info;
-use openssl::pkey::Private;
-use openssl::rsa::{Padding, Rsa};
-use std::fs;
-use std::path::PathBuf;
+use openssl::{
+    pkey::Private,
+    rsa::{Padding, Rsa},
+};
+use serde_json::Value;
+use std::{fs, io::Cursor, path::PathBuf};
+use zip::ZipArchive;
 
 #[derive(Debug, Parser)]
 struct Cli {
@@ -77,6 +79,14 @@ fn handle_file(
 }
 
 fn send_email(zip: &[u8], mailer: &SmtpTransport, smtp_address: &str) -> Result<(), Error> {
+    let mut zip_archive = ZipArchive::new(Cursor::new(zip))?;
+    let text = if let Ok(f) = zip_archive.by_name("formdata.json") {
+        let data: Value = serde_json::from_reader(f)?;
+        serde_json::to_string_pretty(&data)?
+    } else {
+        "ZipFile did not contain formdata.json".to_string()
+    };
+
     info!("Constructing email message");
     let message = Message::builder()
         .from(
@@ -88,7 +98,7 @@ fn send_email(zip: &[u8], mailer: &SmtpTransport, smtp_address: &str) -> Result<
         .subject("Hakulomake")
         .multipart(
             MultiPart::mixed()
-                .singlepart(SinglePart::plain("Uusi hakulomake...".to_string()))
+                .singlepart(SinglePart::plain(text))
                 .singlepart(
                     Attachment::new("lomake.zip".to_string())
                         .body(Body::new(zip.to_vec()), "application/zip".parse()?),
