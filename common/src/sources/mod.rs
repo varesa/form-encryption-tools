@@ -15,11 +15,11 @@ pub trait Source {
     fn confirm(&self, id: OsString) -> Result<(), anyhow::Error>;
 }
 
-pub fn from_string(s: &str) -> Box<dyn Source> {
+pub fn from_string(s: &str) -> Result<Box<dyn Source>, anyhow::Error> {
     if s.starts_with('/') {
-        Box::new(FileSource::new(s))
+        Ok(Box::new(FileSource::new(s)))
     } else if s.contains(':') {
-        Box::new(SshSource::new(s))
+        Ok(Box::new(SshSource::new(s)?))
     } else {
         panic!("Invalid source specification");
     }
