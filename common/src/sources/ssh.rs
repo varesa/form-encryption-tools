@@ -2,10 +2,12 @@ use crate::sources::{Data, Source};
 use anyhow::Error;
 use log::info;
 use ssh2::{Session, Sftp};
-use std::env;
 use std::ffi::OsString;
+use std::io::Read;
 use std::net::TcpStream;
 use std::path::PathBuf;
+use std::time::Duration;
+use std::{env, thread};
 
 fn split2(s: &str, pattern: char) -> Result<(String, String), Error> {
     let mut v: Vec<&str> = s.split(pattern).collect();
@@ -88,12 +90,27 @@ impl SshSource {
 
 impl Source for SshSource {
     fn next(&mut self) -> Result<Data, Error> {
-        let files = self.sftp.readdir(&self.directory)?;
-        dbg!(files);
-        todo!();
+        let path = loop {
+            let mut files = self.sftp.readdir(&self.directory)?;
+            if files.len() > 0 {
+                break files.pop().unwrap().0;
+            } else {
+                thread::sleep(Duration::from_secs(5));
+            }
+        };
+
+        let mut file = self.sftp.open(&path)?;
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)?;
+
+        Ok(Data {
+            id: path.into_os_string(),
+            contents,
+        })
     }
 
-    fn confirm(&self, _id: OsString) -> Result<(), Error> {
-        todo!()
+    fn confirm(&self, id: OsString) -> Result<(), Error> {
+        self.sftp.unlink(&PathBuf::from(&id))?;
+        Ok(())
     }
 }
