@@ -42,7 +42,7 @@ fn main() -> Result<(), anyhow::Error> {
         output: cli.output,
     };
 
-    let source = sources::from_string(cli.input.to_str().unwrap());
+    let mut source = sources::from_string(cli.input.to_str().unwrap());
     loop {
         let data = source.next()?;
         handle_data(&data, &config)?;

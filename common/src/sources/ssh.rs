@@ -11,7 +11,7 @@ impl SshSource {
 }
 
 impl Source for SshSource {
-    fn next(&self) -> Result<Data, Error> {
+    fn next(&mut self) -> Result<Data, Error> {
         todo!()
     }
 

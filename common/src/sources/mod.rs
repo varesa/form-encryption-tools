@@ -11,7 +11,7 @@ pub struct Data {
 }
 
 pub trait Source {
-    fn next(&self) -> Result<Data, anyhow::Error>;
+    fn next(&mut self) -> Result<Data, anyhow::Error>;
     fn confirm(&self, id: OsString) -> Result<(), anyhow::Error>;
 }
 
