@@ -1,6 +1,7 @@
 use crate::sources::{Data, Source};
 use anyhow::Context;
 use anyhow::Error;
+use log::info;
 use notify::event::AccessKind;
 use notify::{EventKind, Watcher};
 use std::ffi::OsString;
@@ -17,12 +18,14 @@ pub struct FileSource {
 }
 
 fn watcher_thread(path: PathBuf, file_tx: Sender<PathBuf>) -> Result<(), Box<anyhow::Error>> {
+    info!("Starting watcher");
     let (event_tx, event_rx) = channel();
     let mut watcher = notify::recommended_watcher(event_tx).expect("Failed to create watcher");
     watcher
         .watch(path.as_ref(), notify::RecursiveMode::NonRecursive)
         .expect("Failed to watch directory");
 
+    info!("Watching for events...");
     for event in event_rx {
         let event = event.expect("Failed to get event");
         if let EventKind::Access(AccessKind::Close(_)) = &event.kind {
@@ -46,6 +49,7 @@ impl FileSource {
 
 impl Source for FileSource {
     fn next(&mut self) -> Result<Data, Error> {
+        info!("Next file requested");
         // Check that thread is alive
         if self
             .thread
@@ -65,6 +69,7 @@ impl Source for FileSource {
 
         // Read a filename from queue
         let fname = self.rx.recv().context("Failed to receive filename")?;
+        info!("New file available: {}", fname.to_string_lossy());
         let contents = fs::read(&fname).context("Failed to read file")?;
 
         let data = Data {
@@ -78,6 +83,7 @@ impl Source for FileSource {
     }
 
     fn confirm(&self, id: OsString) -> Result<(), Error> {
+        info!("Removing file: {}", id.to_string_lossy());
         let fname = self.path.join(id);
         fs::remove_file(fname).context("Failed to remove file")
     }

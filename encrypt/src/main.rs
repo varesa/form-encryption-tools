@@ -31,6 +31,8 @@ struct Cli {
 
 fn main() -> Result<(), anyhow::Error> {
     simple_logger::init_with_level(log::Level::Info).unwrap();
+    info!("Starting");
+
     let cli = Cli::parse();
 
     let config_string = fs::read_to_string(&cli.config)
