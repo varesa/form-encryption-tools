@@ -1633,6 +1633,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tools"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "data-encoding",
+ "json",
+ "openssl",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "tower-service"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

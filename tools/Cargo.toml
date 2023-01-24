@@ -1,0 +1,15 @@
+[package]
+name = "tools"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+common = { path = "../common" }
+data-encoding = "2.3.2"
+json = "0.12.4"
+openssl = "0.10.43"
+serde = "1.0.148"
+serde_derive = "1.0.148"
+serde_json = "1.0.89"
