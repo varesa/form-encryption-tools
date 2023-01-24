@@ -11,11 +11,12 @@ use std::thread;
 use std::thread::JoinHandle;
 
 pub struct FileSource {
+    path: PathBuf,
     rx: Receiver<PathBuf>,
     thread: Option<JoinHandle<Result<(), Box<Error>>>>,
 }
 
-fn watcher_thread(path: String, file_tx: Sender<PathBuf>) -> Result<(), Box<anyhow::Error>> {
+fn watcher_thread(path: PathBuf, file_tx: Sender<PathBuf>) -> Result<(), Box<anyhow::Error>> {
     let (event_tx, event_rx) = channel();
     let mut watcher = notify::recommended_watcher(event_tx).expect("Failed to create watcher");
     watcher
@@ -35,10 +36,11 @@ fn watcher_thread(path: String, file_tx: Sender<PathBuf>) -> Result<(), Box<anyh
 
 impl FileSource {
     pub fn new(path: &str) -> Self {
-        let path = path.to_owned();
+        let path = PathBuf::from(path);
         let (tx, rx) = channel();
-        let thread = Some(thread::spawn(move || watcher_thread(path, tx)));
-        Self { thread, rx }
+        let thread_path = path.clone();
+        let thread = Some(thread::spawn(move || watcher_thread(thread_path, tx)));
+        Self { path, thread, rx }
     }
 }
 
@@ -76,7 +78,7 @@ impl Source for FileSource {
     }
 
     fn confirm(&self, id: OsString) -> Result<(), Error> {
-        let fname = id;
+        let fname = self.path.join(id);
         fs::remove_file(fname).context("Failed to remove file")
     }
 }

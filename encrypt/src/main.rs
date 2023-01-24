@@ -20,9 +20,8 @@ struct Cli {
     #[arg(long)]
     config: PathBuf,
 
-    #[arg(long)]
-    cache: PathBuf,
-
+    //#[arg(long)]
+    //cache: PathBuf,
     #[arg(long)]
     input: PathBuf,
 

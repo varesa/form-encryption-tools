@@ -1,10 +1,11 @@
 use crate::sources::{Data, Source};
 use anyhow::Error;
+use log::info;
 use ssh2::{Session, Sftp};
 use std::env;
 use std::ffi::OsString;
 use std::net::TcpStream;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn split2(s: &str, pattern: char) -> Result<(String, String), Error> {
     let mut v: Vec<&str> = s.split(pattern).collect();
@@ -61,18 +62,22 @@ impl SshSource {
 
         let private_key = PathBuf::new()
             .join(env::var("HOME").expect("Unable to read $HOME"))
-            .join(".ssh/id_rsa");
+            .join(".ssh/id_ed25519");
 
+        info!("Connnecting SSH");
         let tcp = TcpStream::connect(format!("{}:22", remote_parameters.hostname)).unwrap();
         let mut sess = Session::new().unwrap();
         sess.set_tcp_stream(tcp);
         sess.handshake()?;
+        info!("SSH connected");
         sess.userauth_pubkey_file(&username, None, &private_key, None)?;
         if !sess.authenticated() {
             return Err(Error::msg("Authentication failed"));
         }
+        info!("SSH authenticated");
 
         let sftp = sess.sftp()?;
+        info!("SFTP session open");
 
         Ok(Self {
             sftp,
@@ -83,7 +88,9 @@ impl SshSource {
 
 impl Source for SshSource {
     fn next(&mut self) -> Result<Data, Error> {
-        todo!()
+        let files = self.sftp.readdir(&self.directory)?;
+        dbg!(files);
+        todo!();
     }
 
     fn confirm(&self, _id: OsString) -> Result<(), Error> {

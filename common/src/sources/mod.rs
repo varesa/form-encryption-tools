@@ -5,6 +5,7 @@ use std::ffi::OsString;
 mod file;
 mod ssh;
 
+#[derive(Debug)]
 pub struct Data {
     pub contents: Vec<u8>,
     pub id: OsString,
