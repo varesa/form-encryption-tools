@@ -1,0 +1,18 @@
+FROM registry.access.redhat.com/ubi9:latest AS builder
+RUN dnf install -y gcc openssl-devel
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.sh
+RUN bash rustup.sh -y
+
+ENV PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+WORKDIR /src
+COPY . .
+RUN cargo build --release
+
+FROM registry.access.redhat.com/ubi9 AS release
+RUN dnf install -y openssl
+COPY --from=builder /src/target/release/convert_key /usr/bin/
+COPY --from=builder /src/target/release/queue-decrypt /usr/bin/
+COPY --from=builder /src/target/release/queue-sender /usr/bin/
+COPY --from=builder /src/target/release/queue-encrypt /usr/bin/
+COPY --from=builder /src/target/release/test-server /usr/bin/

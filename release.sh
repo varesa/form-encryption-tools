@@ -5,7 +5,7 @@ CACHE_DIR=".podman_cache"
 BUILDER_IMAGE="localhost/form-encryption-tools-build"
 
 build_image() {
-    podman build -f Dockerfile.build -t "${BUILDER_IMAGE}"
+    podman build -f Dockerfile.build_el7 -t "${BUILDER_IMAGE}"
 }
 
 if ! podman image inspect "${BUILDER_IMAGE}" >/dev/null 2>&1; then
