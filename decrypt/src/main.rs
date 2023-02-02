@@ -20,9 +20,6 @@ struct Cli {
     source: String,
 
     #[arg(long)]
-    output: PathBuf,
-
-    #[arg(long)]
     private_key: PathBuf,
 
     #[arg(long)]
